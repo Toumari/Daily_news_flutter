@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:news_app/services/dio_client.dart';
+import 'package:news_app/services/news_api.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 void main() {
   runApp(MyApp());
@@ -26,9 +28,11 @@ class HomePage extends StatefulWidget {
   _HomePageState createState() => _HomePageState();
 }
 
+DioClient _dio = DioClient();
+
 class _HomePageState extends State<HomePage> {
   bool onPressedValue = true;
-  DioClient _dio = DioClient();
+
   @override
   Widget build(BuildContext context) {
     return SafeArea(
@@ -38,7 +42,7 @@ class _HomePageState extends State<HomePage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'CryptoCurrency',
+              'Daily News',
               style: TextStyle(
                   fontSize: 32,
                   fontWeight: FontWeight.bold,
@@ -48,7 +52,7 @@ class _HomePageState extends State<HomePage> {
               height: 5,
             ),
             Text(
-              'Current Crypto Markets',
+              'Headlines from around the world',
               style: TextStyle(
                   fontSize: 16,
                   color: Colors.grey.shade800,
@@ -61,70 +65,56 @@ class _HomePageState extends State<HomePage> {
               height: 20,
             ),
             Expanded(
-                child: Container(
-              child: FutureBuilder<List<String>>(
-                  future: _dio.getBitCoinValue(),
+              child: Container(
+                child: FutureBuilder<List<Article>>(
+                  future: _dio.getNews(),
                   builder: (context, snapshot) {
                     if (!snapshot.hasData) {
-                      return Center(
-                        child: CircularProgressIndicator(),
-                      );
+                      return Center(child: CircularProgressIndicator());
                     } else {
-                      List<String> data = snapshot.data ?? [];
-                      if (snapshot.data != null) {
-                        return Container(
-                          margin: EdgeInsets.only(bottom: 10),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Expanded(
-                                child: ListView.builder(
-                                    scrollDirection: Axis.vertical,
-                                    itemCount: data.length,
-                                    itemBuilder: (context, index) {
-                                      return Column(
-                                        children: [
-                                          Container(
-                                            margin: EdgeInsets.all(16.0),
-                                            child: Text(
-                                              data[index],
-                                              style: TextStyle(
-                                                  fontSize: 20,
-                                                  fontWeight: FontWeight.w600),
-                                            ),
-                                          ),
-                                        ],
-                                      );
-                                    }),
+                      List<Article>? newsArticle = snapshot.data;
+                      return ListView.builder(
+                        itemCount: newsArticle?.length,
+                        itemBuilder: (BuildContext context, int index) {
+                          return Container(
+                            padding: EdgeInsets.all(7),
+                            child: ListTile(
+                              onTap: () async {
+                                await canLaunch(newsArticle![index].url)
+                                    ? await launch(newsArticle[index].url)
+                                    : throw 'Could not launch ${newsArticle[index].url}';
+                              },
+                              title: Text(
+                                newsArticle![index].title.toString(),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
                               ),
-                            ],
-                          ),
-                        );
-                      }
-                      return Text("Invalid");
+                              subtitle: Text(
+                                newsArticle[index].description,
+                                maxLines: 4,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              leading: newsArticle[index].urlToImage != null
+                                  ? Container(
+                                      width: 100,
+                                      decoration: BoxDecoration(
+                                          borderRadius:
+                                              BorderRadius.circular(10),
+                                          image: DecorationImage(
+                                              image: NetworkImage(
+                                                  newsArticle[index]
+                                                      .urlToImage
+                                                      .toString()))),
+                                    )
+                                  : null,
+                            ),
+                          );
+                        },
+                      );
                     }
-                  }),
-            )),
-            Center(
-              child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                      primary: Colors.orange.shade800,
-                      minimumSize: Size(200, 60)),
-                  onPressed: onPressedValue == true
-                      ? () {
-                          setState(() {
-                            onPressedValue = false;
-                          });
-
-                          print("PRESSED");
-                          Timer(Duration(seconds: 15), () {
-                            setState(() {
-                              onPressedValue = true;
-                            });
-                          });
-                        }
-                      : null,
-                  child: Text('Refresh Data')),
+                  },
+                ),
+              ),
             ),
           ],
         ),
